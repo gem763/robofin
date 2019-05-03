@@ -1,0 +1,191 @@
+<style>
+  #run:hover {
+    background: whitesmoke !important;
+  }
+
+  .CodeMirror {
+    /* border: 1px solid red; */
+    height: auto;
+    padding: 10px;
+  }
+
+  #editcode {
+    background: transparent;
+    opacity: 0 !important;
+    transition: opacity 0.5s;
+  }
+
+  #editcode:hover {
+    background: rgba(220, 220, 220, .2);
+    opacity: 1 !important;
+  }
+
+  #source:hover + #editcode {
+    opacity: 1 !important;
+  }
+</style>
+
+<div class="ui text container segments" style="margin-top:100px;box-shadow: 0 0 10px rgba(0,0,0,0.2)">
+
+  <div class="ui padded segment">
+
+    <div style="display:block" id="chooser_mode">
+      <div class="ui header">
+        Model chooser
+      </div>
+
+      <div class="content" style="padding:2%;">
+        <form class="ui form" onsubmit="return false;">
+          <div class="field">
+            <label>Model</label>
+            <div class="ui selection dropdown" id="modelselector">
+              <input type="hidden" name="models">
+              <div class="default text">모델을 선택하세요</div>
+              <i class="dropdown icon"></i>
+              <div class="menu">
+                {% for key, val in model_matcher.items %}
+                  <div class="item" data-value="{{ key }}">{{ val.desc }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="five wide field">
+            <label># positions</label>
+            <div class="ui input">
+              <input type="text" value="10" style="text-align:right" id="n_pos_chooser">
+            </div>
+          </div>
+
+
+          <div class="ui fluid accordion field">
+            <div class="title">
+              <i class="dropdown icon"></i>
+              Show code
+            </div>
+            <div class="content field" style="position:relative">
+              <div style="background:whitesmoke;padding:10px" id="source">
+              </div>
+              <div class="ui icon button" style="position:absolute;top:30px;right:20px;z-index:50;" id="editcode">
+                <i class="large code icon"></i>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+
+    <div style="display:none" id="coder_mode">
+      <div class="ui header">
+        Model coding
+      </div>
+
+      <div class="content" style="padding:2%;">
+        <form class="ui form" onsubmit="return false;">
+          <div class="ui field">
+            <label>Code</label>
+            <div style="background:whitesmoke;padding:10px" id="mysource">
+            </div>
+          </div>
+
+          <div class="five wide field">
+            <label># positions</label>
+            <div class="ui input">
+              <input type="text" value="10" style="text-align:right" id="n_pos_coder">
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+
+    <div class="ui compact right floated button" style="background:white" id="run">
+      <i class="sync icon"></i>
+      RUN
+    </div>
+
+    <br>
+  </div>
+</div>
+
+
+
+<div class="ui text container segments" id="results" style="display:none;box-shadow: 0 0 10px rgba(0,0,0,0.2)">
+
+  <div class="ui padded segment">
+    <div class="ui header">Cumulative</div>
+    <div class="content" style="padding:2%;">
+      <canvas id="nav" style="max-width:90%;max-height:300px;margin-left:auto;margin-right:auto"></canvas>
+    </div>
+  </div>
+
+  <div class="ui padded segment">
+    <div class="ui header">Stats</div>
+    <div class="content" style="padding:2%;">
+
+      <div class="ui three column stackable grid container">
+        <div class="column" style="text-align:center;">
+          <div class="ui small header">
+            Annual return
+          </div>
+          <div class="content">
+            <canvas id="Annual return" style="max-width:90%;max-height:200px;margin-left:auto;margin-right:auto"></canvas>
+          </div>
+        </div>
+
+        <div class="column" style="text-align:center;">
+          <div class="ui small header">
+            Volatility
+          </div>
+          <div class="content">
+            <canvas id="Volatility" style="max-width:90%;max-height:200px;margin-left:auto;margin-right:auto"></canvas>
+          </div>
+        </div>
+
+        <div class="column" style="text-align:center;">
+          <div class="ui small header">
+            Sharpe
+          </div>
+          <div class="content">
+            <canvas id="Sharpe" style="max-width:90%;max-height:200px;margin-left:auto;margin-right:auto;"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <div class="ui padded segment">
+    <div class="ui header">
+      Positions
+      <div class="ui right floated compact floating scrolling dropdown button" id="dateselector">
+        <span class="text"></span>
+        <i class="dropdown icon"></i>
+      </div>
+    </div>
+
+    <div class="content" style="padding:2%;">
+      <table class="ui basic fixed selectable unstackable very compact table" id="position">
+      </table>
+    </div>
+
+  </div>
+</div>
+
+
+<div class="ui tiny modal" id="error">
+  <i class="close icon"></i>
+  <div class="header">
+    Something wrong
+  </div>
+  <div class="scrolling content" id="error_content">
+  </div>
+  <div class="actions">
+    <div class="ui positive right labeled icon button">
+      Retry
+      <i class="checkmark icon"></i>
+    </div>
+  </div>
+</div>

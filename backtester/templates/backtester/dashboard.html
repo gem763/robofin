@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <title>QIT</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="/static/semantic/semantic.min.css">
+  <link rel="stylesheet" href="/static/codemirror/lib/codemirror.css">
+</head>
+
+{% load static %}
+<body style="background:whitesmoke">
+  {% include "backtester/header.html" %}
+  {% include "backtester/content.html" %}
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.5/chartjs-plugin-annotation.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@0.5.0"></script>
+  <!-- <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js?skin=desert"></script> -->
+  <script src="/static/semantic/semantic.min.js"></script>
+  <script src="/static/codemirror/lib/codemirror.js"></script>
+  <script src="/static/codemirror/mode/python/python.js"></script>
+  <script src="/static/codemirror/addon/display/autorefresh.js"></script>
+
+  <script>
+    Chart.plugins.unregister(ChartDataLabels);
+
+    $("#chooser").click(function() {
+      $("#chooser").attr("class", "ui item active");
+      $("#coder").attr("class", "ui item");
+
+      $("#chooser_mode").css("display", "block");
+      $("#coder_mode").css("display", "none");
+
+      $("#modelselector").dropdown("clear");
+      $("#results").css("display", "none");
+    });
+
+    $("#coder").click(function() {
+      $("#chooser").attr("class", "ui item");
+      $("#coder").attr("class", "ui item active");
+
+      $("#chooser_mode").css("display", "none");
+      $("#coder_mode").css("display", "block");
+
+      $("#results").css("display", "none");
+
+      $("#mysource").empty();
+      var where = document.getElementById("mysource");
+      var myCodeMirror = CodeMirror(where, {
+        value: "# import pandas as pd\n# import numpy as np\n# 그 밖에 (설치가 필요없는) 기본모듈을 import해서 쓰면 된다\n# 추가로 사용가능 함수: get_fisyear\n\ndef myModel(date, fin=None, mc=None, n=10):\n    # Type your code here\n    # fisyear = get_fisyear(date)\n    return position # pd.Series",
+        // autoRefresh: true
+      });
+      myCodeMirror.focus();
+      myCodeMirror.setCursor(myCodeMirror.lineCount(), 0);
+    });
+
+    $("#editcode").click(function() {
+      var source = $("#source").children()[0].CodeMirror.getValue();
+
+      $("#chooser").attr("class", "ui item");
+      $("#coder").attr("class", "ui item active");
+
+      $("#chooser_mode").css("display", "none");
+      $("#coder_mode").css("display", "block");
+
+      $("#results").css("display", "none");
+
+      $("#mysource").empty();
+      var where = document.getElementById("mysource");
+      var myCodeMirror = CodeMirror(where, {
+        value: source,
+      });
+      myCodeMirror.focus();
+      myCodeMirror.setCursor(myCodeMirror.lineCount(), 0);
+    });
+
+    $("#logo").mouseover(function() {
+      $("#logoicon").attr("class", "asterisk large loading icon");
+    });
+
+    $("#logo").mouseout(function() {
+      $("#logoicon").attr("class", "asterisk large icon");
+    });
+
+    $('.ui.accordion').accordion({
+      onChanging: function() {
+        // $("#editcode").css("opacity", 0);
+      }
+    });
+
+    $("#modelselector").dropdown({
+      onChange: function(value, text, $selectedItem) {
+        var model_id = $("#modelselector").dropdown("get value");
+
+        if (model_id!="") {
+          var data = { model_id: model_id };
+
+          $.ajax({
+            url: '{% url "get_source" %}',
+            async: true,
+            type: 'GET',
+            data: data,
+            dataType: 'json',
+            success: function(data) {
+              $("#source").empty();
+              var where = document.getElementById("source");
+              var myCodeMirror = CodeMirror(where, {
+                value: data.source,
+                readOnly: 'nocursor',
+                autoRefresh: true,
+                // lineNumbers: true
+              });
+            }
+          });
+        }
+      }
+    });
+
+
+    $("#run").click(function() {
+      var data;
+
+      if ($("#chooser_mode").css("display")=="block") {
+        if ($("#modelselector").dropdown("get value")=="") {
+          $("#error_content").text("모델을 선택해주세요");
+          $("#error").modal("show");
+          return false;
+        };
+
+        data = {
+          model_id: $("#modelselector").dropdown("get value"),
+          n_pos: $("#n_pos_chooser").val()
+        };
+
+      } else {
+        data = {
+          mysource: $("#mysource").children()[0].CodeMirror.getValue(),
+          n_pos: $("#n_pos_coder").val()
+        };
+      }
+
+      $.ajax({
+        url: '{% url "run_backtest" %}',
+        async: true,
+        type: 'GET',
+        data: data,
+        dataType: 'json',
+        success: function(results) {
+          if (results.error) {
+              $("#error_content").text(results.error);
+              $("#error").modal("show");
+          } else {
+            show_navs(results);
+            show_stats(results);
+            show_position(results);
+            $("#results").css("display", "block")
+          }
+        }
+      });
+
+    });
+
+    function show_navs(results) {
+      var chart = new Chart('nav', {
+          type: 'line',
+          data: {
+            labels: results.dates,
+            datasets: [{
+              label: 'Model',
+              data: results.navs_model,
+              borderColor: 'orange',
+            }, {
+              label: 'BM',
+              data: results.navs_bm,
+              borderColor: 'black',
+            }],
+          },
+          options: {
+            elements: {
+              point: { radius: 0 },
+              line: { fill: false, tension: 0 },
+            },
+            scales: {
+              xAxes: [{
+                type: 'time',
+                time: {
+                  unit:'year',
+                  displayFormats: { year:'YYYY' },
+                },
+                gridLines: { display: false },
+              }],
+              yAxes: [{
+                ticks: {
+                  min: results.navs_min,
+                },
+                gridLines: { display: false },
+              }],
+            },
+            legend: {
+              display: true,
+              labels: {
+                // boxWidth: 100,
+              },
+            },
+          }
+      });
+    };
+
+    function show_stats(results) {
+      var stats = results.stats;
+      var stats_names = stats.index;
+      var strats = stats.columns;
+      var stats_data = stats.data;
+
+      for(var i=0; i<stats_names.length; i++) {
+        // jquery로 select 하면 "Annual return"은 선택이 안된다...
+        var canvas = document.getElementById(stats_names[i]);
+        var parent = canvas.parentNode;
+        parent.removeChild(canvas);
+
+        canvas = document.createElement('canvas');
+        canvas.id = stats_names[i]
+        canvas.style = "max-width:90%;max-height:200px;margin-left:auto;margin-right:auto;"
+        parent.append(canvas);
+
+        if (stats_names[i]=="Sharpe") {
+          var _format = function(value) {
+            return value.toFixed(3);
+            }
+        } else {
+          var _format = function(value) {
+            return (value*100).toFixed(1) + "%";
+          }
+        }
+
+        new Chart(stats_names[i], {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+              labels: strats,
+              datasets: [{
+                data: stats_data[i],
+                backgroundColor: ['orange', 'black'],
+                borderWidth: 0,
+              }],
+            },
+            options: {
+              // responsive: true,
+              plugins: {
+                datalabels: {
+                  anchor: "end",
+                  align: "end",
+                  formatter: _format
+                }
+              },
+              scales: {
+                xAxes: [{
+                  display: false,
+                  gridLines: { display: false },
+                }],
+                yAxes: [{
+                  ticks: {
+                    // min: 0,
+                    beginAtZero: true,
+                  },
+                  display: false,
+                  gridLines: { display: false },
+                }],
+              },
+              legend: {
+                display: false,
+              },
+              layout: {
+                padding: {
+                  top: 20,
+                  // bottom: 50,
+                }
+              },
+              tooltips: {
+                enabled: false,
+              },
+              annotation: {
+                annotations: [{
+                  drawTime: "afterDatasetsDraw",
+                  id: "hline",
+                  type: "line",
+                  mode: "horizontal",
+                  scaleID: "y-axis-0",
+                  value: 0,
+                  borderColor: "silver",
+                  borderWidth: 1,
+                }]
+              }
+            }
+        });
+      }
+    };
+
+
+    function show_position(results) {
+      var pos = results.pos;
+
+      $("#dateselector").dropdown({
+        direction: 'upward',
+        placeholder: 'Rebalancing',
+        values: results.dates.map((v) => { return { name:v, value:v } }),
+        onChange: function(value, text, $selectedItem) {
+          $("#position").empty();
+
+          if (value!="") {
+            var thead = document.createElement('thead');
+
+            var th_name = document.createElement('th');
+            th_name.className = "eight wide";
+            th_name.append('Name');
+
+            var th_weight = document.createElement('th');
+            th_weight.className = "right aligned eight wide";
+            th_weight.append('Weight(%)');
+
+            var tr_head = document.createElement('tr');
+            tr_head.append(th_name, th_weight);
+            thead.append(tr_head);
+
+            var tbody = document.createElement('tbody');
+
+            $.each(pos[value], function(index, value) {
+              var td_name = document.createElement('td');
+              td_name.className = "eight wide";
+              td_name.append(index);
+
+              var td_weight = document.createElement('td');
+              td_weight.className = "right aligned eight wide";
+              td_weight.append(value)
+
+              var tr = document.createElement('tr');
+              tr.append(td_name, td_weight);
+
+              tbody.append(tr);
+            });
+
+            $("#position").append(thead, tbody);
+          }
+        }
+      });
+    }
+
+
+  </script>
+</body>
+</html>
