@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Asset, Marketdata
+from data.models import Asset, Marketdata
 
 # class AssetSerializer(serializers.ModelSerializer):
 #     class Meta:

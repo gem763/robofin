@@ -1,4 +1,5 @@
 from django.urls import path, include
+from django.views.generic.base import RedirectView
 # from rest_framework.urlpatterns import format_suffix_patterns
 from . import views as v
 from rest_framework import routers
@@ -23,9 +24,9 @@ from rest_framework import routers
 urlpatterns = [
     path('auth/', include('rest_framework.urls', namespace='rest_framework')),
     # path('', include(router.urls)),
-    path('assets', v.AssetView.as_view()),
-    path('assets/', v.AssetView.as_view()),
-    path('marketdata/', v.MarketdataView.as_view()),
-    path('marketdata', v.MarketdataView.as_view()),
-    # path('test/', v.test)
+    path('assets', v.AssetView.as_view(), name='assets'),
+    # path('assets/', RedirectView.as_view(pattern_name='assets')),
+    path('marketdata', v.MarketdataView.as_view(), name='marketdata'),
+    # path('marketdata/', v.MarketdataView.as_view(), name='marketdata'),
+    path('marketdata/', RedirectView.as_view(pattern_name='marketdata')),
 ]
