@@ -50,7 +50,16 @@ class AssetView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         self.queryset = self._queryset()
+
+        # if len(self.get_queryset())<100:
+        #     self.pagination_class = None
+
         return super().list(request, args, kwargs)
+
+        # queryset = self._queryset()
+        # serializer = self.serializer_class(queryset, many=True)
+        # return Response(serializer.data)
+
 
     # ************** 중요 **************
     # get_queryset(self)를 오버라이딩 해서 쓰지말자,
@@ -58,14 +67,14 @@ class AssetView(generics.ListAPIView):
 
     def _queryset(self):
         qs = self.get_queryset()
-        tickers = self.request.query_params.get('ticker', None)
-        names = self.request.query_params.get('name', None)
+        ticker = self.request.query_params.get('ticker', None)
+        name = self.request.query_params.get('name', None)
 
-        if (tickers is not None) and (names is None):
-            qs = qs.filter(ticker__in=tickers.split(','))
+        if (ticker is not None):
+            qs = qs.filter(ticker__icontains=ticker)
 
-        elif (tickers is None) and (names is not None):
-            qs = qs.filter(name__in=names.split(','))
+        if (name is not None):
+            qs = qs.filter(name__icontains=name)
 
         return qs.order_by('ticker')
 
