@@ -123,6 +123,8 @@ class MarketdataView(generics.ListAPIView):
         # results_0 = response.data['results']
         # results = {tick:OrderedDict() for tick in self._tickers}
 
+        # serializer = self.serializer_class(self.queryset, many=True)
+
         # if (self._items is not None) and (len(self._items)==1):
         #     item = self._items[0]
         #     for res in results_0:
@@ -137,9 +139,13 @@ class MarketdataView(generics.ListAPIView):
         #         results[ticker][date] = res
 
         # response.data['results'] = results
+
+        print('***************************', self.queryset)
         print('***************************', len(self.queryset))
         print('***************************', len(response.data['results']))
+        print('***************************', response.data['results'])
         return response
+        # return Response(serializer.data)
 
 
 
